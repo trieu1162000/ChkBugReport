@@ -23,16 +23,34 @@ package com.sonyericsson.chkbugreport;
  */
 public final class AndroidVersions {
 
-    public static final int SDK_DONUT       = 4;
-    public static final int SDK_ECLAIR      = 5;
-    public static final int SDK_ECLAIR_0_1  = 6;
-    public static final int SDK_ECLAIR_MR1  = 7;
-    public static final int SDK_FROYO       = 8;
-    public static final int SDK_GB          = 9;
-    public static final int SDK_GB_MR1      = 10;
-    public static final int SDK_HC          = 11;
-    public static final int SDK_HC_MR1      = 12;
-    public static final int SDK_HC_MR2      = 13;
-    public static final int SDK_ICS         = 14;
+    public static final int SDK_DONUT          = 4;
+    public static final int SDK_ECLAIR         = 5;
+    public static final int SDK_ECLAIR_0_1     = 6;
+    public static final int SDK_ECLAIR_MR1     = 7;
+    public static final int SDK_FROYO          = 8;
+    public static final int SDK_GB             = 9;
+    public static final int SDK_GB_MR1         = 10;
+    public static final int SDK_HC             = 11;
+    public static final int SDK_HC_MR1         = 12;
+    public static final int SDK_HC_MR2         = 13;
+    public static final int SDK_ICS            = 14;
+    public static final int SDK_JELLY_BEAN     = 16;
+    public static final int SDK_JELLY_BEAN_MR1 = 17;
+    public static final int SDK_JELLY_BEAN_MR2 = 18;
+    public static final int SDK_KITKAT         = 19;
+    public static final int SDK_LOLLIPOP       = 21;
+    public static final int SDK_LOLLIPOP_MR1   = 22;
+    public static final int SDK_MARSHMALLOW    = 23;
+    public static final int SDK_NOUGAT         = 24;
+    public static final int SDK_NOUGAT_MR1     = 25;
+    public static final int SDK_OREO           = 26;
+    public static final int SDK_OREO_MR1       = 27;
+    public static final int SDK_PIE            = 28;
+    public static final int SDK_Q              = 29;
+    public static final int SDK_R              = 30;
+    public static final int SDK_S              = 31;
+    public static final int SDK_S_V2           = 32;
+    public static final int SDK_T              = 33;
+    public static final int SDK_U              = 34;
 
 }

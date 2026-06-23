@@ -499,10 +499,42 @@ public class SurfaceFlingerPlugin extends Plugin {
         int expectedCount = 0;
         int line = 0;
 
+        // Scan forward past new metadata lines (e.g. "Service host process PID:",
+        // "Display identification data:", "Scheduler:", etc.) until we find
+        // a recognized starting point
+        String buff = null;
+        while (line < sec.getLineCount()) {
+            buff = sec.getLine(line);
+            if (buff.startsWith("Build configuration:")
+                    || buff.startsWith("Visible layers")
+                    || buff.startsWith("+ Layer")
+                    || buff.startsWith("* Layer")) {
+                break;
+            }
+            line++;
+        }
+        if (line >= sec.getLineCount()) {
+            br.printErr(3, TAG + "Error parsing: cannot recognize section!");
+            return false;
+        }
+
         // Read the number of layers
-        String buff = sec.getLine(0);
         if (buff.startsWith("Build configuration:")) {
-            buff = sec.getLine(++line);
+            // Skip any additional metadata lines until a known marker
+            line++;
+            while (line < sec.getLineCount()) {
+                buff = sec.getLine(line);
+                if (buff.startsWith("Visible layers")
+                        || buff.startsWith("+ Layer")
+                        || buff.startsWith("* Layer")) {
+                    break;
+                }
+                line++;
+            }
+            if (line >= sec.getLineCount()) {
+                br.printErr(3, TAG + "Error parsing: cannot find layer data!");
+                return false;
+            }
         }
         if (buff.startsWith("Visible layers")) {
             int idx0 = buff.indexOf('=');
@@ -513,7 +545,11 @@ public class SurfaceFlingerPlugin extends Plugin {
             }
             expectedCount = Integer.parseInt(buff.substring(idx0 + 2, idx1));
             line++;
-        } else if (buff.startsWith("+ Layer")) {
+            // Skip "Composition layers" header (Android 14+)
+            if (line < sec.getLineCount() && sec.getLine(line).startsWith("Composition layers")) {
+                line++;
+            }
+        } else if (buff.startsWith("+ Layer") || buff.startsWith("* Layer")) {
             // NOP
         } else {
             br.printErr(3, TAG + "Error parsing: cannot recognize section!");
@@ -522,9 +558,9 @@ public class SurfaceFlingerPlugin extends Plugin {
 
         // Read each layer
         while (line < sec.getLineCount()) {
-            // Parse first line (+ LayerType id)
+            // Parse first line (+ LayerType id or * Layer addr (name))
             buff = sec.getLine(line++);
-            if (!buff.startsWith("+ Layer")) {
+            if (!buff.startsWith("+ Layer") && !buff.startsWith("* Layer")) {
                 line--; // rewind
                 // No more layers
                 break;
@@ -534,14 +570,34 @@ public class SurfaceFlingerPlugin extends Plugin {
             mLayers.add(layer);
             count++;
 
-            String fields[] = buff.split(" ");
-            layer.type = fields[1];
-            layer.id = fields[2];
-            if (br.getAndroidVersionSdk() >= AndroidVersions.SDK_ICS) {
+            if (buff.startsWith("* Layer")) {
+                // Android 14+ format: * Layer 0xADDR (name#num)
+                layer.type = "Layer";
+                String fields[] = buff.split(" ");
+                layer.id = fields[2];
                 int idx0 = buff.indexOf('(');
-                int idx1 = buff.indexOf(')');
+                int idx1 = buff.lastIndexOf(')');
                 if (idx0 > 0 && idx1 > idx0) {
-                    layer.name = buff.substring(idx0 + 1, idx1);
+                    String rawName = buff.substring(idx0 + 1, idx1);
+                    // name may have #num suffix
+                    int hashIdx = rawName.lastIndexOf('#');
+                    if (hashIdx > 0) {
+                        layer.name = rawName.substring(0, hashIdx);
+                    } else {
+                        layer.name = rawName;
+                    }
+                }
+            } else {
+                // Old format: + LayerType id (name)
+                String fields[] = buff.split(" ");
+                layer.type = fields[1];
+                layer.id = fields[2];
+                if (br.getAndroidVersionSdk() >= AndroidVersions.SDK_ICS) {
+                    int idx0 = buff.indexOf('(');
+                    int idx1 = buff.indexOf(')');
+                    if (idx0 > 0 && idx1 > idx0) {
+                        layer.name = buff.substring(idx0 + 1, idx1);
+                    }
                 }
             }
 
@@ -552,11 +608,18 @@ public class SurfaceFlingerPlugin extends Plugin {
                     layer.name = buff.substring(11);
                 } else if (buff.startsWith("            ")) {
                     // skip it for now, these lines were introduces in ICS
-                } else if (buff.startsWith("      ")) {
-                    readAttributes(br, layer, buff);
-                } else if (buff.startsWith("  Region ")) {
+                } else if (buff.startsWith("  Region ") || buff.startsWith("        Region ")) {
                     line = readRegion(br, layer, buff, sec, line);
+                } else if (buff.startsWith("      ") && buff.length() > 6
+                        && !buff.substring(6).trim().isEmpty()) {
+                    readAttributes(br, layer, buff);
+                } else if (buff.length() > 5 && buff.startsWith("     ")
+                        && !buff.startsWith("      ") && !buff.substring(5).trim().isEmpty()) {
+                    // skip matrix data lines (Android 14+ geomLayerTransform)
+                } else if (buff.trim().isEmpty()) {
+                    // skip blank lines (Android 14+)
                 } else {
+                    br.printErr(4, TAG + "DEBUG breaking layer at line " + (line) + ": [" + buff + "]");
                     line--; // rewind
                     break;
                 }
@@ -708,8 +771,9 @@ public class SurfaceFlingerPlugin extends Plugin {
     }
 
     private int readRegion(Module br, Layer layer, String buff, Section sec, int line) {
+        buff = buff.trim(); // Handle variable indentation (2-space old, 8-space A14)
         Region reg = null;
-        String fields[] = buff.substring(2).split(" ");
+        String fields[] = buff.split(" ");
         String type = fields[1];
         String s = fields[3];
         if ("transparentRegion".equals(type)) {
@@ -740,6 +804,87 @@ public class SurfaceFlingerPlugin extends Plugin {
     }
 
     private void readAttributes(BugReportModule br, Layer layer, String buff) {
+        if (buff.indexOf(", ") >= 0) {
+            // Old format: comma+space separated key=value pairs with =,()[] delimiters
+            readAttributesOld(br, layer, buff);
+        } else {
+            // Android 14+ format: space-separated key=value pairs
+            readAttributesA14(layer, buff);
+        }
+    }
+
+    private void readAttributesA14(Layer layer, String buff) {
+        String s = buff.trim();
+        // Parse space-separated key=value pairs, respecting [...] groups
+        int i = 0;
+        while (i < s.length()) {
+            // Skip whitespace
+            while (i < s.length() && s.charAt(i) == ' ') i++;
+            if (i >= s.length()) break;
+
+            // Find the next space outside of [...]
+            int end = i;
+            boolean inBracket = false;
+            while (end < s.length()) {
+                char c = s.charAt(end);
+                if (c == '[') inBracket = true;
+                else if (c == ']') inBracket = false;
+                else if (c == ' ' && !inBracket) break;
+                end++;
+            }
+            String token = s.substring(i, end);
+            i = end + 1;
+
+            int eqIdx = token.indexOf('=');
+            if (eqIdx <= 0) continue;
+            String key = token.substring(0, eqIdx);
+            String val = token.substring(eqIdx + 1);
+            if ("alpha".equals(key)) {
+                try {
+                    layer.alpha = (int)(Float.parseFloat(val) * 255);
+                } catch (NumberFormatException e) { /* ignore */ }
+            } else if ("geomBufferSize".equals(key) && val.startsWith("[")) {
+                int close = val.indexOf(']');
+                if (close > 1) {
+                    String dims[] = val.substring(1, close).split(" ");
+                    if (dims.length >= 2) {
+                        try {
+                            int w = Integer.parseInt(dims[0].trim());
+                            int h = Integer.parseInt(dims[1].trim());
+                            if (w > 0 && h > 0) {
+                                layer.rect.w = w;
+                                layer.rect.h = h;
+                            }
+                        } catch (NumberFormatException e) { /* ignore */ }
+                    }
+                }
+            } else if ("geomLayerBounds".equals(key) && val.startsWith("[")) {
+                int close = val.indexOf(']');
+                if (close > 1) {
+                    String dims[] = val.substring(1, close).split(" ");
+                    if (dims.length >= 4) {
+                        try {
+                            float x1 = Float.parseFloat(dims[0].trim());
+                            float y1 = Float.parseFloat(dims[1].trim());
+                            float x2 = Float.parseFloat(dims[2].trim());
+                            float y2 = Float.parseFloat(dims[3].trim());
+                            int w = (int)(x2 - x1);
+                            int h = (int)(y2 - y1);
+                            if (w > 0 && h > 0 && layer.rect.w == 0) {
+                                layer.rect.x = (int)x1;
+                                layer.rect.y = (int)y1;
+                                layer.rect.w = w;
+                                layer.rect.h = h;
+                            }
+                        } catch (NumberFormatException e) { /* ignore */ }
+                    }
+                }
+            }
+            // All other keys silently skipped
+        }
+    }
+
+    private void readAttributesOld(BugReportModule br, Layer layer, String buff) {
         Tokenizer tok = new Tokenizer(buff);
         while (tok.hasMoreTokens()) {
             String key = tok.nextToken();

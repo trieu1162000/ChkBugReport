@@ -57,7 +57,7 @@ public class MemPlugin extends Plugin {
     private static final String TAG = "[MemPlugin]";
 
     private static final Pattern LIB_RANK_HEADER_PATTERN = Pattern.compile("\\s+RSStot\\s+VSS\\s+RSS\\s+PSS\\s+USS\\s+(Swap\\s+)?Name\\/PID.*");
-    Pattern PROCRANK_HEADER_PATTERN = Pattern.compile("\\s+PID\\s+Vss\\s+Rss\\s+Pss\\s+Uss\\s+Swap\\s+PSwap\\s+USwap\\s+ZSwap\\s+cmdline.*");
+    Pattern PROCRANK_HEADER_PATTERN = Pattern.compile("\\s+PID\\s+Vss\\s+Rss\\s+Pss\\s+Uss\\s+Swap\\s+PSwap\\s+USwap(?:\\s+ZSwap)?\\s+cmdline.*");
     private static final Pattern K_PATTERN = Pattern.compile("(\\d+)K");
 
     private static final Pattern P_PROCESS_HEADER_LINE = Pattern.compile("\\*\\*\\s+MEMINFO in pid (\\d+) \\[(.*)\\] \\*\\*");

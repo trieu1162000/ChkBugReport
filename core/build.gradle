@@ -21,14 +21,19 @@ plugins {
     id 'application'
 }
 
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
 repositories {
-    jcenter()
+    mavenCentral()
     google()
 }
 
 dependencies {
     implementation group: 'com.android.tools.ddms', name: 'ddmlib', version: '26.0.0'
-    testImplementation 'junit:junit:4.12', 'org.mockito:mockito-core:2.+'
+    testImplementation 'junit:junit:4.13.2', 'org.mockito:mockito-core:5.14.2'
 }
 
 sourceSets {
@@ -57,6 +62,7 @@ application {
 
 test {
     useJUnit()
+    jvmArgs '-XX:+EnableDynamicAgentLoading'
     testLogging {
         events "passed", "skipped", "failed", "standard_error", "standard_out", "started"
     }
@@ -72,5 +78,7 @@ task copyResources(type: Copy){
     into 'build/resources/main/'
 }
 
+jar.dependsOn copyResources
+compileTestJava.dependsOn copyResources
 startScripts.dependsOn copyWrapper
 assemble.dependsOn copyResources
