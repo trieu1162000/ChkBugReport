@@ -105,11 +105,15 @@ public class SurfaceFlingerPlugin extends Plugin {
     }
 
     @Override
-    public void load(Module rep) {
+	public void load(Module rep) {
         BugReportModule br = (BugReportModule)rep;
 
         // Load data
         Section sec = br.findSection(Section.DUMP_OF_SERVICE_SURFACEFLINGER);
+        if (sec == null) {
+            // Try old format (pre-A14): without "CRITICAL" in the name
+            sec = br.findSection("DUMP OF SERVICE SurfaceFlinger");
+        }
         if (sec == null) {
             br.printErr(3, TAG + "Section not found: " + Section.DUMP_OF_SERVICE_SURFACEFLINGER + " (aborting plugin)");
             return;
@@ -613,13 +617,13 @@ public class SurfaceFlingerPlugin extends Plugin {
                 } else if (buff.startsWith("      ") && buff.length() > 6
                         && !buff.substring(6).trim().isEmpty()) {
                     readAttributes(br, layer, buff);
-                } else if (buff.length() > 5 && buff.startsWith("     ")
-                        && !buff.startsWith("      ") && !buff.substring(5).trim().isEmpty()) {
-                    // skip matrix data lines (Android 14+ geomLayerTransform)
+                } else if (buff.length() > 4 && buff.startsWith("    ")
+                        && !buff.startsWith("     ")
+                        && (Character.isDigit(buff.charAt(4)) || buff.charAt(4) == '-')) {
+                    // skip matrix data lines (Android 14+ geomLayerTransform: 4-space indent, digit start)
                 } else if (buff.trim().isEmpty()) {
                     // skip blank lines (Android 14+)
                 } else {
-                    br.printErr(4, TAG + "DEBUG breaking layer at line " + (line) + ": [" + buff + "]");
                     line--; // rewind
                     break;
                 }
@@ -642,8 +646,7 @@ public class SurfaceFlingerPlugin extends Plugin {
         }
 
         if (expectedCount > 0 && expectedCount != count) {
-            br.printErr(3, TAG + "Error parsing: count mismatch! Expected: " + expectedCount + ", found: " + count);
-            return false;
+            br.printErr(3, TAG + "Warning: count mismatch! Expected: " + expectedCount + ", found: " + count + " (continuing)");
         }
 
         // Search for the line containing "orientation="
