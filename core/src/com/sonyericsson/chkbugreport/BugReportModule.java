@@ -26,6 +26,7 @@ import com.sonyericsson.chkbugreport.doc.PreText;
 import com.sonyericsson.chkbugreport.doc.SimpleText;
 import com.sonyericsson.chkbugreport.plugins.AlarmManagerPlugin;
 import com.sonyericsson.chkbugreport.plugins.CpuFreqPlugin;
+import com.sonyericsson.chkbugreport.plugins.CpuInfoPlugin;
 import com.sonyericsson.chkbugreport.plugins.MemPlugin;
 import com.sonyericsson.chkbugreport.plugins.MiscPlugin;
 import com.sonyericsson.chkbugreport.plugins.PSTreePlugin;
@@ -124,6 +125,7 @@ public class BugReportModule extends Module {
         addPlugin(new AlarmManagerPlugin());
         addPlugin(new BatteryInfoPlugin());
         addPlugin(new CpuFreqPlugin());
+        addPlugin(new CpuInfoPlugin());
         addPlugin(new SurfaceFlingerPlugin());
         addPlugin(new WindowManagerPlugin());
         addPlugin(new SysPropsPlugin());
