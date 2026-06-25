@@ -23,7 +23,6 @@ import com.sonyericsson.chkbugreport.Module;
 import com.sonyericsson.chkbugreport.Plugin;
 import com.sonyericsson.chkbugreport.Section;
 import com.sonyericsson.chkbugreport.doc.Chapter;
-import com.sonyericsson.chkbugreport.doc.Hint;
 import com.sonyericsson.chkbugreport.doc.TreeView;
 import com.sonyericsson.chkbugreport.util.DumpTree;
 
@@ -65,7 +64,6 @@ public class MiscPlugin extends Plugin {
         // Parse the data
         DumpTree dump = new DumpTree(section, 0);
         Chapter ch = mod.findOrCreateChapter(chName);
-        new Hint(ch).add("Under construction! For now it contains the raw data in a tree-view.");
         ch.add(convertToTreeView(dump.getRoot(), 0));
     }
 

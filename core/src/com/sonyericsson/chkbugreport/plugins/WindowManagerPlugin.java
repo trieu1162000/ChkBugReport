@@ -26,7 +26,6 @@ import com.sonyericsson.chkbugreport.doc.Block;
 import com.sonyericsson.chkbugreport.doc.Bug;
 import com.sonyericsson.chkbugreport.doc.Chapter;
 import com.sonyericsson.chkbugreport.doc.DocNode;
-import com.sonyericsson.chkbugreport.doc.Hint;
 import com.sonyericsson.chkbugreport.doc.Icon;
 import com.sonyericsson.chkbugreport.doc.Link;
 import com.sonyericsson.chkbugreport.doc.List;
@@ -259,8 +258,7 @@ public class WindowManagerPlugin extends Plugin {
         // Check for possible errors
         checkDuplicatedWindows(br, mainCh, anchor);
 
-        // Generate window list (for now)
-        new Hint(ch).add("Under construction");
+        // Generate window list
         new Para(ch).add("Window list:");
         DocNode list = new Block(ch).addStyle("winlist");
         int count = mWindowManagerState.windows.size();
